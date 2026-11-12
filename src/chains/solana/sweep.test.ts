@@ -47,3 +47,22 @@ test('no SOL tx when nothing is left after fees', () => {
   assert.equal(plan.solTx, null);
   assert.throws(() => planSweep({ owner, dest: owner, balance: 0, holdings: [], ataRent: new Map(), priorityMicroLamports: 0, keepLamports: 0, blockhash }));
 });
+
+test('sponsored: payer covers fees and rent, owner sends its whole balance', () => {
+  const payer = Keypair.generate().publicKey;
+  const holdings = [...Array(12)].map((_, i) => holding(i, 1000n));
+  const ataRent = new Map(holdings.map((h) => [getAssociatedTokenAddressSync(h.mint, dest, true, h.program).toBase58(), RENT]));
+  const plan = planSweep({ owner, dest, payer, balance: 7_000_000, holdings, ataRent, priorityMicroLamports: 100_000, keepLamports: 0, blockhash });
+  assert.equal(plan.solAmount, 7_000_000);
+  for (const tx of [...plan.tokenTxs, plan.solTx!]) {
+    const m = tx.compileMessage();
+    assert.ok(m.accountKeys[0].equals(payer), 'payer is fee payer');
+    assert.equal(m.header.numRequiredSignatures, 2);
+    assert.ok(m.serialize().length + 1 + 128 <= PACKET_DATA_SIZE);
+  }
+  const ixs = plan.tokenTxs.flatMap((t) => t.instructions);
+  const close = ixs.find((ix) => ix.data[0] === 9)!;
+  assert.ok(close.keys[1].pubkey.equals(dest), 'rent goes to destination');
+  const create = ixs.find((ix) => ix.programId.toBase58().startsWith('AToken'))!;
+  assert.ok(create.keys[0].pubkey.equals(payer), 'payer funds new token accounts');
+});

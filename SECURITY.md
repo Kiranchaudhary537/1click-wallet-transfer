@@ -14,7 +14,8 @@ Include steps to reproduce, the affected chain, and the impact. We aim to acknow
 
 - Funds sent to an address other than the one the user entered
 - Wrong amounts, or funds left stuck because of a planning bug
-- Anything that exposes keys or lets a third party (RPC, token list) change what gets signed
+- Anything that exposes keys (including the rescue-mode key) or lets a third party (RPC, token list) change what gets signed
+- Rescue-mode delegations or user operations that a third party could replay or redirect
 - XSS or injection in the UI
 
 ## Out of scope

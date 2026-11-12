@@ -34,6 +34,7 @@
     "@solana/web3.js": "^1.99.0",
     "@wallet-standard/app": "^1.1.1",
     "@wallet-standard/features": "^1.1.1",
+    "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "mipd": "^0.0.7",
     "viem": "^2.57.18"

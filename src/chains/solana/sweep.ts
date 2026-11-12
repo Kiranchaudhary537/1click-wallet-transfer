@@ -17,6 +17,8 @@ export type PlanInput = {
   owner: PublicKey; dest: PublicKey; balance: number; holdings: Holding[];
   ataRent: Map<string, number>; // dest ATA (base58) -> rent the owner pays to create it; absent = already exists
   priorityMicroLamports: number; keepLamports: number; blockhash: string;
+  /** Who pays fees and new-account rent. Defaults to owner; set to the safe wallet in rescue mode. */
+  payer?: PublicKey;
 };
 
 export type Plan = { tokenTxs: Transaction[]; solTx: Transaction | null; solAmount: number; skipped: Holding[] };
@@ -73,6 +75,10 @@ const destAta = (h: Holding, dest: PublicKey) => getAssociatedTokenAddressSync(h
  */
 export function planSweep(p: PlanInput): Plan {
   if (p.owner.equals(p.dest)) throw new Error('Destination must differ from source');
+  const payer = p.payer ?? p.owner, sponsored = !payer.equals(p.owner);
+  // Self-paid: rent comes back to the owner so it funds the next ATA creation, then leaves in the SOL tx.
+  // Sponsored: owner pays nothing, so rent goes straight to the destination.
+  const rentTo = sponsored ? p.dest : p.owner;
   const skipped = p.holdings.filter((h) => h.frozen);
   const groups: TransactionInstruction[][] = [];
   let lamports = p.balance;
@@ -82,15 +88,14 @@ export function planSweep(p: PlanInput): Plan {
     if (h.amount > 0n) {
       const ata = destAta(h, p.dest);
       const key = ata.toBase58();
-      if (p.ataRent.has(key) && !created.has(key)) { lamports -= p.ataRent.get(key)!; created.add(key); }
+      if (!sponsored && p.ataRent.has(key) && !created.has(key)) { lamports -= p.ataRent.get(key)!; created.add(key); }
       ixs.push(
-        createAssociatedTokenAccountIdempotentInstruction(p.owner, ata, p.dest, h.mint, h.program),
+        createAssociatedTokenAccountIdempotentInstruction(payer, ata, p.dest, h.mint, h.program),
         createTransferCheckedInstruction(h.account, h.mint, ata, p.owner, h.amount, h.decimals, [], h.program),
       );
     }
-    // Rent comes back to the owner so it funds the next ATA creation, then leaves in the SOL tx.
-    ixs.push(createCloseAccountInstruction(h.account, p.owner, p.owner, [], h.program));
-    lamports += h.lamports;
+    ixs.push(createCloseAccountInstruction(h.account, rentTo, p.owner, [], h.program));
+    if (!sponsored) lamports += h.lamports;
     groups.push(ixs);
   }
 
@@ -98,7 +103,7 @@ export function planSweep(p: PlanInput): Plan {
   let batch: TransactionInstruction[][] = [];
   const build = (b: TransactionInstruction[][]) => {
     const cu = Math.min(1_400_000, CU_PER_TOKEN * b.length);
-    const tx = new Transaction({ feePayer: p.owner, recentBlockhash: p.blockhash }).add(
+    const tx = new Transaction({ feePayer: payer, recentBlockhash: p.blockhash }).add(
       ComputeBudgetProgram.setComputeUnitLimit({ units: cu }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: p.priorityMicroLamports }),
       ...b.flat(),
@@ -106,12 +111,15 @@ export function planSweep(p: PlanInput): Plan {
     return { tx, cu };
   };
   const fits = (b: TransactionInstruction[][]) => {
-    try { return build(b).tx.serializeMessage().length + 1 + 64 <= PACKET_DATA_SIZE; } catch { return false; }
+    try {
+      const m = build(b).tx.compileMessage();
+      return m.serialize().length + 1 + 64 * m.header.numRequiredSignatures <= PACKET_DATA_SIZE;
+    } catch { return false; }
   };
   const flush = () => {
     if (!batch.length) return;
     const { tx, cu } = build(batch);
-    lamports -= fee(cu, p.priorityMicroLamports);
+    if (!sponsored) lamports -= fee(cu, p.priorityMicroLamports);
     tokenTxs.push(tx);
     batch = [];
   };
@@ -121,9 +129,9 @@ export function planSweep(p: PlanInput): Plan {
   }
   flush();
 
-  const solAmount = lamports - fee(CU_SOL_TX, p.priorityMicroLamports) - p.keepLamports;
+  const solAmount = lamports - (sponsored ? 0 : fee(CU_SOL_TX, p.priorityMicroLamports)) - p.keepLamports;
   const solTx = solAmount > 0
-    ? new Transaction({ feePayer: p.owner, recentBlockhash: p.blockhash }).add(
+    ? new Transaction({ feePayer: payer, recentBlockhash: p.blockhash }).add(
       ComputeBudgetProgram.setComputeUnitLimit({ units: CU_SOL_TX }),
       ComputeBudgetProgram.setComputeUnitPrice({ microLamports: p.priorityMicroLamports }),
       SystemProgram.transfer({ fromPubkey: p.owner, toPubkey: p.dest, lamports: solAmount }),

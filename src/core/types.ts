@@ -32,4 +32,13 @@ export interface ChainAdapter {
   scan(rpc: string, address: string): Promise<Asset[]>;
   /** Moves every asset it can from `from` to `to`, using as few wallet prompts as the chain allows. */
   sweep(opts: SweepOptions): Promise<void>;
+  /**
+   * Optional rescue mode, for when the compromised wallet has no gas (or a drainer bot takes any that arrives).
+   * The compromised key signs locally, in memory; the connected wallet is the *safe* wallet and pays every fee.
+   */
+  rescue?: {
+    /** Address for a pasted secret key. Throws if the key is malformed. */
+    addressOf(secret: string): string;
+    sweep(opts: Omit<SweepOptions, 'from'> & { secret: string }): Promise<void>;
+  };
 }

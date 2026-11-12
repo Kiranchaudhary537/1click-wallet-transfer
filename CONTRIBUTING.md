@@ -39,8 +39,11 @@ known wallet on that chain to confirm balances show up.
    not by reading one wallet's `window.*` global.
 4. Register it in `src/chains/index.ts`.
 
+5. Optional: implement `rescue` (see `ChainAdapter.rescue`) if the chain lets a second account pay the fees.
+
 Rules every adapter must follow:
-- **Never ask for or handle private keys.** Signing happens in the user's wallet.
+- **Only `rescue` may take a private key**, only the compromised one, and only in memory. Never log, store or send it.
+  Everything else signs in the user's wallet.
 - **Show `confirm()` before signing**, with the destination and what will move.
 - **Use the fewest wallet prompts the chain allows.** That is the point of the project.
 - **Send the native coin last**, and work out its amount so fees are covered.

@@ -11,6 +11,7 @@
     #sweep { background: #c62828; color: #fff; border: 0; }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; }
     td, th { border-bottom: 1px solid #ddd; padding: 6px; text-align: left; font-family: monospace; font-size: 12px; }
+    .hint { color: #666; font-size: 12px; margin: 4px 0; }
     #log { white-space: pre-wrap; background: #111; color: #9f9; padding: 12px; margin-top: 16px; min-height: 60px; font: 12px monospace; }
   </style>
 </head>
@@ -21,6 +22,17 @@
   <select id="chain"></select>
   <label for="rpc">RPC URL</label>
   <input id="rpc" />
+  <label for="mode">Mode</label>
+  <select id="mode">
+    <option value="wallet">Wallet: connect the compromised wallet and approve (it pays the gas)</option>
+    <option value="rescue">Rescue: paste the compromised key, your safe wallet pays the gas</option>
+  </select>
+  <div id="rescueBox" hidden>
+    <label for="secret">Compromised wallet private key</label>
+    <input id="secret" type="password" autocomplete="off" spellcheck="false" placeholder="never leaves this page; not sent anywhere" />
+    <p class="hint">Use when the compromised wallet has no gas or a bot drains any that arrives. The key is already
+      leaked, but only paste it into a copy of this app you run yourself. It stays in this tab's memory.</p>
+  </div>
   <label for="src">Compromised wallet (source)</label>
   <input id="src" placeholder="address — or connect the wallet" />
   <label for="wallet">Wallet</label>
