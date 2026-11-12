@@ -1,0 +1,5 @@
+# Native accelerators with pure-JS fallbacks; not running third-party install scripts keeps the supply chain smaller.
+allowBuilds:
+  bigint-buffer: false
+  bufferutil: false
+  utf-8-validate: false

@@ -1,0 +1,20 @@
+name: Chain request
+description: Ask for (or offer to build) support for a new chain
+labels: [new-chain]
+body:
+  - type: input
+    id: chain
+    attributes:
+      label: Chain name and chain ID
+    validations: { required: true }
+  - type: dropdown
+    id: family
+    attributes:
+      label: Chain family
+      options: [EVM (viem chain exists), EVM (no viem chain yet), Non-EVM (needs a new adapter)]
+    validations: { required: true }
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Public RPC, multicall support, wallet extensions, batching options. Say if you want to build it yourself.

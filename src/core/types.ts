@@ -1,0 +1,31 @@
+/** A balance found in the source wallet, already formatted for display. */
+export type Asset = { symbol: string; amount: string; id: string; note?: string };
+
+export type SweepOptions = {
+  rpc: string;
+  from: string;
+  to: string;
+  /** Native amount (in whole units, e.g. "0.001") to leave in the source wallet. */
+  keepNative: string;
+  /** Shown to the user before anything is signed; return false to abort. */
+  confirm: (summary: string) => boolean;
+  log: (line: string) => void;
+};
+
+/**
+ * Everything the app needs from a chain. To add a chain (or a chain family), implement this
+ * and register it in src/chains/index.ts. See CONTRIBUTING.md.
+ */
+export interface ChainAdapter {
+  /** Unique, stable key, e.g. "solana" or "evm-8453". */
+  id: string;
+  name: string;
+  nativeSymbol: string;
+  defaultRpc: string;
+  isAddress(address: string): boolean;
+  /** Connects the browser wallet for the source account; returns its address. */
+  connect(): Promise<string>;
+  scan(rpc: string, address: string): Promise<Asset[]>;
+  /** Moves every asset it can from `from` to `to`, using as few wallet prompts as the chain allows. */
+  sweep(opts: SweepOptions): Promise<void>;
+}

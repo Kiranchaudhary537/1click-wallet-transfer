@@ -1,0 +1,24 @@
+name: Bug report
+description: Something did not transfer, or the app misbehaved
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "**Never paste a private key or seed phrase here.** Addresses and transaction hashes are fine."
+  - type: dropdown
+    id: chain
+    attributes:
+      label: Chain
+      options: [Solana, Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Smart Chain, Other]
+    validations: { required: true }
+  - type: input
+    id: wallet
+    attributes:
+      label: Wallet extension and version
+      placeholder: Phantom 25.x, MetaMask 13.x, ...
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Include the log output from the page and any transaction hashes.
+    validations: { required: true }

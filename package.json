@@ -1,0 +1,42 @@
+{
+  "name": "1click-wallet-transfer",
+  "version": "0.1.0",
+  "description": "Move every token out of a compromised wallet to a safe one, in as few clicks as the chain allows. Solana + EVM.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kiranchaudhary537/1click-wallet-transfer.git"
+  },
+  "keywords": [
+    "solana",
+    "evm",
+    "wallet",
+    "sweeper",
+    "compromised-wallet",
+    "security",
+    "multicall"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "packageManager": "pnpm@12.16.1",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
+    "buffer": "^6.0.3",
+    "viem": "^2.57.18"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8"
+  }
+}

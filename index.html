@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>1-Click Wallet Transfer</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; }
+    label { display: block; margin: 10px 0 4px; font-weight: 600; }
+    input, select { width: 100%; padding: 8px; box-sizing: border-box; font-family: monospace; }
+    button { margin: 12px 8px 0 0; padding: 10px 16px; font-weight: 600; cursor: pointer; }
+    #sweep { background: #c62828; color: #fff; border: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    td, th { border-bottom: 1px solid #ddd; padding: 6px; text-align: left; font-family: monospace; font-size: 12px; }
+    #log { white-space: pre-wrap; background: #111; color: #9f9; padding: 12px; margin-top: 16px; min-height: 60px; font: 12px monospace; }
+  </style>
+</head>
+<body>
+  <h1>1-Click Wallet Transfer</h1>
+  <p>Moves every token and the native coin from a compromised wallet to a safe wallet, in as few wallet approvals as the chain allows.</p>
+  <label for="chain">Chain</label>
+  <select id="chain"></select>
+  <label for="rpc">RPC URL</label>
+  <input id="rpc" />
+  <label for="src">Compromised wallet (source)</label>
+  <input id="src" placeholder="address — or connect the wallet" />
+  <button id="connect">Connect source wallet</button><button id="scan">Scan balances</button>
+  <table><thead><tr><th>Token</th><th>Amount</th><th>Mint</th><th>Note</th></tr></thead><tbody id="tokens"></tbody></table>
+  <label for="dest">Safe wallet (destination)</label>
+  <input id="dest" placeholder="destination address" />
+  <label for="keep">Leave behind (<span id="native"></span>)</label>
+  <input id="keep" type="number" min="0" step="any" value="0" />
+  <button id="sweep">Transfer everything</button>
+  <div id="log"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
