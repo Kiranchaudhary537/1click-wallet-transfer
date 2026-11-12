@@ -1,21 +1,24 @@
-import { Connection, LAMPORTS_PER_SOL, PublicKey, type Transaction } from '@solana/web3.js';
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { getWallets } from '@wallet-standard/app';
+import { StandardConnect, type StandardConnectFeature } from '@wallet-standard/features';
+import { SolanaSignTransaction, type SolanaSignTransactionFeature } from '@solana/wallet-standard-features';
 import type { ChainAdapter } from '../../core/types.ts';
 import { dzapTokens, formatUnits } from '../../core/dzap.ts';
 import { loadAtaRent, loadHoldings, planSweep } from './sweep.ts';
 
-type Provider = {
-  publicKey: PublicKey | null;
-  connect(): Promise<unknown>;
-  signAllTransactions(txs: Transaction[]): Promise<Transaction[]>;
-};
+type Wallet = ReturnType<ReturnType<typeof getWallets>['get']>[number];
+type Account = Wallet['accounts'][number];
 
 const DZAP_CHAIN_ID = 7565164;
+const CHAIN = 'solana:mainnet' as const;
 // shortcut: fixed priority fee; read getRecentPrioritizationFees if batches land too slowly under congestion
 const PRIORITY_MICRO_LAMPORTS = 200_000;
 
-const w = globalThis as any;
-const provider = (): Provider | undefined => w.phantom?.solana ?? w.solflare ?? w.backpack ?? w.solana;
 const toKey = (s: string) => new PublicKey(s.trim());
+// Wallet Standard: Phantom, Solflare, Backpack and others register themselves here.
+const solanaWallets = () => getWallets().get()
+  .filter((w) => StandardConnect in w.features && SolanaSignTransaction in w.features && w.chains.includes(CHAIN));
+let connected: { wallet: Wallet; account: Account } | null = null;
 
 export const solana: ChainAdapter = {
   id: 'solana',
@@ -27,11 +30,16 @@ export const solana: ChainAdapter = {
     try { toKey(s); return true; } catch { return false; }
   },
 
-  async connect() {
-    const p = provider();
-    if (!p) throw new Error('No Solana wallet extension found (Phantom, Solflare, Backpack)');
-    await p.connect();
-    return p.publicKey!.toBase58();
+  wallets: () => solanaWallets().map((w) => ({ id: w.name, name: w.name })),
+
+  async connect(walletId) {
+    const wallet = solanaWallets().find((w) => w.name === walletId);
+    if (!wallet) throw new Error('No Solana wallet found. Install Phantom, Solflare or Backpack and reload.');
+    const { accounts } = await (wallet.features[StandardConnect] as StandardConnectFeature[typeof StandardConnect]).connect();
+    const account = accounts.find((a) => a.chains.includes(CHAIN)) ?? accounts[0];
+    if (!account) throw new Error(`${wallet.name} did not share an account`);
+    connected = { wallet, account };
+    return account.address;
   },
 
   async scan(rpc, address) {
@@ -49,8 +57,9 @@ export const solana: ChainAdapter = {
   },
 
   async sweep({ rpc, from, to, keepNative, confirm, log }) {
-    const p = provider(), c = new Connection(rpc, 'confirmed'), owner = toKey(from), dest = toKey(to);
-    if (!p?.publicKey?.equals(owner)) throw new Error('Connect the source wallet first (connected wallet must match source)');
+    const c = new Connection(rpc, 'confirmed'), owner = toKey(from), dest = toKey(to);
+    if (connected?.account.address !== owner.toBase58()) throw new Error('Connect the source wallet first (connected wallet must match source)');
+    const { wallet, account } = connected;
     const [holdings, balance, { blockhash, lastValidBlockHeight }] =
       await Promise.all([loadHoldings(c, owner), c.getBalance(owner), c.getLatestBlockhash('confirmed')]);
     const ataRent = await loadAtaRent(c, dest, holdings);
@@ -64,10 +73,15 @@ export const solana: ChainAdapter = {
       `${plan.tokenTxs.length + (plan.solTx ? 1 : 0)} transactions, one wallet approval. Continue?`)) return;
     if (plan.skipped.length) log(`Skipping ${plan.skipped.length} frozen account(s)`);
 
-    const signed = await p.signAllTransactions(plan.solTx ? [...plan.tokenTxs, plan.solTx] : plan.tokenTxs);
-    const send = async (tx: Transaction, label: string) => {
+    // One signTransaction call with every tx = one wallet prompt.
+    const sign = (wallet.features[SolanaSignTransaction] as SolanaSignTransactionFeature[typeof SolanaSignTransaction]).signTransaction;
+    const txs = plan.solTx ? [...plan.tokenTxs, plan.solTx] : plan.tokenTxs;
+    const signed = (await sign(...txs.map((tx) => ({
+      account, chain: CHAIN, transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }),
+    })))).map((o) => o.signedTransaction);
+    const send = async (raw: Uint8Array, label: string) => {
       try {
-        const signature = await c.sendRawTransaction(tx.serialize(), { maxRetries: 5 });
+        const signature = await c.sendRawTransaction(raw, { maxRetries: 5 });
         log(`${label}: sent ${signature}`);
         const { value } = await c.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
         log(`${label}: ${value.err ? 'FAILED ' + JSON.stringify(value.err) : 'confirmed'}`);

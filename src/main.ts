@@ -1,6 +1,4 @@
-import { Buffer } from 'buffer';
-(globalThis as any).Buffer ??= Buffer; // spl-token expects a global Buffer in the browser
-
+import './polyfills.ts'; // must stay first
 import { chains } from './chains/index.ts';
 
 const $ = (id: string) => document.getElementById(id) as HTMLInputElement;
@@ -12,10 +10,21 @@ const addr = (id: string, name: string) => {
   return v;
 };
 
+const refreshWallets = () => {
+  const keep = $('wallet').value, ws = chain().wallets();
+  $('wallet').replaceChildren(...(ws.length ? ws.map((w) => new Option(w.name, w.id)) : [new Option('No wallet detected', '')]));
+  if (ws.some((w) => w.id === keep)) $('wallet').value = keep;
+};
 $('chain').replaceChildren(...chains.map((c) => new Option(c.name, c.id)));
-const onChain = () => { $('rpc').value = chain().defaultRpc; $('native').textContent = chain().nativeSymbol; $('tokens').replaceChildren(); };
+const onChain = () => {
+  $('rpc').value = chain().defaultRpc; $('native').textContent = chain().nativeSymbol;
+  $('tokens').replaceChildren(); refreshWallets();
+};
 $('chain').addEventListener('change', onChain);
+// Wallets announce themselves shortly after load, so re-list when the picker is opened too.
+$('wallet').addEventListener('focus', refreshWallets);
 onChain();
+setTimeout(refreshWallets, 500);
 
 const run = (btn: string, fn: () => Promise<void>) => $(btn).addEventListener('click', async () => {
   $(btn).disabled = true;
@@ -23,7 +32,7 @@ const run = (btn: string, fn: () => Promise<void>) => $(btn).addEventListener('c
 });
 
 run('connect', async () => {
-  $('src').value = await chain().connect();
+  $('src').value = await chain().connect($('wallet').value);
   log('Connected ' + $('src').value);
 });
 

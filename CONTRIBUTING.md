@@ -34,7 +34,9 @@ known wallet on that chain to confirm balances show up.
 2. Put the pure logic (which transfers to build, how much native to send) in `sweep.ts`, with no
    network or wallet calls, so it can be unit-tested. Add `sweep.test.ts` next to it.
 3. Implement the `ChainAdapter` interface from `src/core/types.ts` in `index.ts`: `scan`, `connect`,
-   `sweep`, `isAddress`. The UI needs nothing else.
+   `sweep`, `isAddress`, `wallets`. The UI needs nothing else.
+   Discover wallets through the chain's open standard (like Wallet Standard on Solana or EIP-6963 on EVM),
+   not by reading one wallet's `window.*` global.
 4. Register it in `src/chains/index.ts`.
 
 Rules every adapter must follow:

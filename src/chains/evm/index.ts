@@ -3,14 +3,18 @@ import {
   parseUnits, zeroAddress, type Address, type Chain, type PublicClient,
 } from 'viem';
 import { estimateL1Fee } from 'viem/op-stack';
-import type { ChainAdapter } from '../../core/types.ts';
+import { createStore, type EIP1193Provider, type Store } from 'mipd';
+import type { ChainAdapter, WalletOption } from '../../core/types.ts';
 import { dzapTokens } from '../../core/dzap.ts';
 import { nativeSweepAmount, transferCalls, type Held } from './sweep.ts';
 
-const eth = () => {
-  const e = (globalThis as any).ethereum;
-  if (!e) throw new Error('No EVM wallet extension found (MetaMask, Rabby, Coinbase Wallet, ...)');
-  return e;
+// EIP-6963: every installed wallet announces itself, so MetaMask, Rabby, Coinbase... don't fight over window.ethereum.
+let store: Store | undefined; // lazy: createStore touches window
+const injected = () => {
+  const found = (store ??= createStore()).getProviders()
+    .map((d) => ({ id: d.info.rdns, name: d.info.name, provider: d.provider as EIP1193Provider }));
+  const legacy = (globalThis as any).ethereum as EIP1193Provider | undefined; // wallets that predate EIP-6963
+  return found.length || !legacy ? found : [{ id: 'injected', name: 'Browser wallet', provider: legacy }];
 };
 
 // shortcut: only tokens in the DZAP list are found (EVM has no on-chain "list my tokens");
@@ -33,6 +37,11 @@ async function heldTokens(client: PublicClient, chainId: number, owner: Address)
 /** Builds an adapter for any viem chain that has multicall3 deployed. */
 export function evmChain(chain: Chain): ChainAdapter {
   const client = (rpc: string) => createPublicClient({ chain, transport: http(rpc) }) as PublicClient;
+  let provider: EIP1193Provider | null = null;
+  const walletClient = () => {
+    if (!provider) throw new Error('Connect the source wallet first');
+    return createWalletClient({ chain, transport: custom(provider) });
+  };
   return {
     id: `evm-${chain.id}`,
     name: chain.name,
@@ -40,8 +49,13 @@ export function evmChain(chain: Chain): ChainAdapter {
     defaultRpc: chain.rpcUrls.default.http[0],
     isAddress: (s) => isAddress(s.trim()),
 
-    async connect() {
-      const [address] = await createWalletClient({ chain, transport: custom(eth()) }).requestAddresses();
+    wallets: (): WalletOption[] => injected().map(({ id, name }) => ({ id, name })),
+
+    async connect(walletId) {
+      const found = injected().find((w) => w.id === walletId);
+      if (!found) throw new Error('No EVM wallet found. Install MetaMask, Rabby or Coinbase Wallet and reload.');
+      provider = found.provider;
+      const [address] = await walletClient().requestAddresses();
       return address;
     },
 
@@ -57,7 +71,7 @@ export function evmChain(chain: Chain): ChainAdapter {
     async sweep({ rpc, from, to, keepNative, confirm, log }) {
       const c = client(rpc), owner = getAddress(from.trim()), dest = getAddress(to.trim());
       if (owner === dest) throw new Error('Destination must differ from source');
-      const wallet = createWalletClient({ chain, transport: custom(eth()) });
+      const wallet = walletClient();
       const [account] = await wallet.requestAddresses();
       if (getAddress(account) !== owner) throw new Error('Connected wallet must match the source address');
       if ((await wallet.getChainId()) !== chain.id) await wallet.switchChain({ id: chain.id });

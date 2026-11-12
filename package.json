@@ -30,8 +30,12 @@
   },
   "dependencies": {
     "@solana/spl-token": "^0.4.15",
+    "@solana/wallet-standard-features": "^1.5.0",
     "@solana/web3.js": "^1.99.0",
+    "@wallet-standard/app": "^1.1.1",
+    "@wallet-standard/features": "^1.1.1",
     "buffer": "^6.0.3",
+    "mipd": "^0.0.7",
     "viem": "^2.57.18"
   },
   "devDependencies": {

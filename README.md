@@ -13,7 +13,10 @@ in as few wallet approvals as the chain allows.
 | Ethereum, Base, Arbitrum, Optimism, Polygon, BNB | **2** with an EIP-5792 wallet (1 for all tokens + 1 for native), otherwise 1 per token + 1 | `wallet_sendCalls` batch, then a native transfer |
 
 Everything runs in your browser and signs in your own wallet extension. There is no backend, and
-private keys never touch this app.
+private keys never touch this app. Wallets are discovered through open standards:
+[Wallet Standard](https://github.com/wallet-standard/wallet-standard) on Solana (Phantom, Solflare, Backpack, ...)
+and [EIP-6963](https://eips.ethereum.org/EIPS/eip-6963) on EVM (MetaMask, Rabby, Coinbase Wallet, ...).
+Every installed wallet appears in the picker.
 
 ## Quick start
 
@@ -24,7 +27,7 @@ pnpm install
 pnpm dev        # http://localhost:5173
 ```
 
-1. Pick the chain, enter the compromised address (or **Connect** it), then click **Scan**.
+1. Pick the chain and your wallet, then **Connect** the compromised wallet (or just type its address to look), then click **Scan**.
 2. Enter the safe address, then click **Transfer everything** and approve in your wallet.
 
 ## How it works
