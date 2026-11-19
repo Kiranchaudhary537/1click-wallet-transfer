@@ -31,17 +31,17 @@
   "dependencies": {
     "@solana/spl-token": "^0.4.15",
     "@solana/wallet-standard-features": "^1.5.0",
-    "@solana/web3.js": "^1.99.0",
+    "@solana/web3.js": "^3.2.1",
     "@wallet-standard/app": "^1.1.1",
     "@wallet-standard/features": "^1.1.1",
     "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "mipd": "^0.0.7",
-    "viem": "^2.57.18"
+    "viem": "^2.57.20"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vite": "^8.3.8"
   }
 }
